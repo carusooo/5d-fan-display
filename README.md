@@ -24,6 +24,9 @@ To use this repo:
     python fan_cmd.py --help
 ```
 
+## Generating images
+
+To generate images you can use [this](https://po75.oss-cn-shenzhen.aliyuncs.com/other/PC-5DDisplayer.zip) software to covert images.
 
 ## To-Dos
 
