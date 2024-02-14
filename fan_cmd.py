@@ -1,10 +1,13 @@
 # Import the socket library
+import argparse
 import math
 import os
 import socket
-import struct
 import sys
 import time
+
+__version = "0.3"
+
 
 SERVER_ADDRESS = '192.168.4.1'
 COMMAND_PORT = 5233
@@ -15,6 +18,33 @@ PACKET_SIZE      = 1460
 TRANSFER_END = bytes([100, 51, 49, 100, 56, 56, 68, 69, 70, 97, 52, 97, 56, 99, 50, 101, 51])
 PACKET_HEADER = bytes([100, 51, 49, 100, 56, 56, 74, 77, 80])
 PACKET_TRAILER = bytes([48, 48, 48, 97, 52, 97, 56, 99, 50, 101, 51])
+
+
+parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='Control a 224 LED holographic propeller display.\nVersion %s from https://github.com/jnweiger/led-hologram-propeller\n -- see there for more examples and for updates.' % __version, epilog="""
+Commands:
+
+  pause
+    Stop the animation at the current frame. A constant image will be shown until a
+    'play' command is sent.
+
+  play
+    Resume playing. Unpause.
+                                 
+  turn_off
+    Stop the motor from spinning and power off the LEDs
+                                 
+  turn_on
+    Start the motor begin displaying images
+
+  upload FILE.bin
+    Load a file into the device. The '.bin' suffix is mandatory and the file name cannot be longer than 8 characters.
+
+""")
+
+parser.add_argument('cmd', metavar='COMMAND', nargs='+', help="Command word.")
+parser.add_argument('--command-help', action='version', help=argparse.SUPPRESS, version="--")
+args = parser.parse_args()
+
 
 play_last =     bytes([99, 51, 49, 99, 51, 51, 97, 98, 99, 97, 52, 97, 56, 99, 50, 101, 51])
 play_loop1 =    bytes([99, 51, 49, 99, 51, 55, 97, 98, 99, 97, 52, 97, 56, 99, 50, 101, 51])
@@ -30,7 +60,7 @@ turn_on =       bytes([99, 51, 49, 99, 52, 53, 97, 98, 99, 97, 52, 97, 56, 99, 5
 def buf_bytes(b):
    return ', '.join([str(v) for v in b])
 
-def send_bytes_to_server(byte_array):
+def send_bytes_to_device(byte_array):
     """
     Opens a socket connection to the specified IP and port, and sends the supplied byte array.
     """
@@ -38,6 +68,7 @@ def send_bytes_to_server(byte_array):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         # Connect to the server
         s.connect((SERVER_ADDRESS, COMMAND_PORT))
+        try_recv(s, 0.1, True)
         # Send the byte array
         s.sendall(byte_array)
         print("Bytes sent successfully.")
@@ -178,9 +209,38 @@ def upload_bin_file(file):
   u.close()
 
 
-# send_bytes_to_server(turn_off)
-# send_complete_message()
-upload_bin_file('im_1548.bin')
-# send_bytes_to_server(playlist_slot(3))
-send_bytes_read_response(read_playlist)
-# print("%s"% buf_bytes(b'0AgQ'))
+if args.cmd[0] == 'pause':
+  send_bytes_to_device(pause)
+
+elif args.cmd[0] == 'play':
+  send_bytes_to_device(play)
+
+elif args.cmd[0] == 'turn_off':
+  send_bytes_to_device(turn_off)
+
+elif args.cmd[0] == 'turn_on':
+  send_bytes_to_device(turn_on)
+
+# elif args.cmd[0] == 'status':
+#   n = s.send(b"c0eeb7c9baa3020000000014cc" + b"38" + b"lfhbfb5d2a2")
+#   fmt_status(try_recv(s, 2.0, False))
+
+# elif args.cmd[0] == 'del' or args.cmd[0] == 'delete':
+#   if len(args.cmd) < 2:
+#     print("ERROR: delete needs an INDEX parameter.")
+#     sys.exit(1)
+#   idx = int(args.cmd[1])
+#   if idx <= 0 or idx > 99:
+#     print("ERROR: delete INDEX must be > 1 and < 100. (%d seen)" % idx)
+#     sys.exit(1)
+#   n = s.send(b"c0eeb7c9baa3020000000014cc" + b"39" + b"lfj" + bytes("%02d" % idx, "UTF-8") + b"bfb5d2a2")
+#   print("%d bytes sent." % n)
+
+elif args.cmd[0] == 'upload':
+  if len(args.cmd) < 2:
+    print("ERROR: upload needs an binfile parameter.")
+    sys.exit(1)
+  upload_bin_file(args.cmd[1])
+
+else:
+  print("\nUnknown command '%s' -- try %s --help" % (args.cmd[0], sys.argv[0]))
